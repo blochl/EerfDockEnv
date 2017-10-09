@@ -1,0 +1,64 @@
+# Use an official Python runtime as a parent image
+FROM python:3.6-slim
+
+# Set the working directory to /usr/app
+WORKDIR /usr/app
+
+# Install dependencies and initial config
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ssh \
+    git \
+    man \
+    sudo \
+    curl \
+    less \
+    x11-apps \
+    bash-completion \
+    silversearcher-ag \
+    vim-gtk \
+    fonts-powerline \
+    mesa-common-dev \
+    libgl1-mesa-dev \
+    libglu1-mesa-dev \
+    ocl-icd-opencl-dev \
+    mesa-opencl-icd \
+    build-essential \
+    tk-dev \
+    tcl-dev \
+    apt-utils \
+    libopenmpi-dev \
+    openmpi-bin \
+    libfftw3-dev \
+    libfftw3-mpi3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && sed -i 's|^%sudo.*|%sudo\tALL=(ALL) NOPASSWD: ALL|' /etc/sudoers
+
+# Configure Vim
+ADD ./vimrc /etc/vim/vimrc.local
+RUN curl -fLo /etc/vim/autoload/plug.vim --create-dirs \
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim \
+    && chmod 755 /etc/vim/autoload \
+    && pl_url="https://github.com/powerline/fonts/raw/master" \
+    && curl -L ${pl_url}/DejaVuSansMono/DejaVu%20Sans%20Mono%20for%20Powerline.ttf \
+        -o "/usr/local/share/fonts/DejaVu Sans Mono for Powerline.ttf" \
+    && fc-cache \
+    && $(vim -u /etc/vim/vimrc.local -e +PlugInstall +qall 2>/dev/null || true)
+
+# Install the needed Python packages
+RUN pip install --disable-pip-version-check --no-cache-dir wheel \
+    && pip install --disable-pip-version-check --no-cache-dir numpy \
+    && pip install --disable-pip-version-check --no-cache-dir scipy \
+    && pip install --disable-pip-version-check --no-cache-dir \
+        mako lxml matplotlib h5py SIP cython cffi \
+    && pip install --disable-pip-version-check --no-cache-dir \
+        pyfftw sympy vispy pillow scikit-image fabio PGen PyQt5 PyOpenGL \
+        ipython silx pycollada pyamg opencv-python mpi4py jupyter pymca numba \
+        pyopencl pyFAI
+
+# Configure login env
+ENV TERM=xterm-256color
+ADD ./ascii_logo /usr/app
+RUN cat /usr/app/ascii_logo >> /etc/bash.bashrc
+
+# Run when the container launches
+CMD ["/bin/bash"]
